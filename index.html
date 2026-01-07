@@ -518,9 +518,7 @@
 
         // 检测是否需要使用 CORS 代理 (本地文件或 localhost)
         function needsCorsProxy() {
-            return window.location.protocol === 'file:' ||
-                window.location.hostname === 'localhost' ||
-                window.location.hostname === '127.0.0.1';
+            return true;
         }
 
         // 计算默认日期范围（最近30天）
@@ -1230,3 +1228,4 @@
 </body>
 
 </html>
+
