@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backpack 交易量分析仪表板</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #a0a0a0;
+            font-size: 1rem;
+        }
+
+        .config-section {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .config-section label {
+            color: #fff;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .config-section label::before {
+            content: '⚙️';
+            font-size: 1.2rem;
+        }
+
+        .config-select {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .config-select:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        .config-select:focus {
+            border-color: rgba(102, 126, 234, 0.8);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .config-select option {
+            background: #24243e;
+            color: #fff;
+        }
+
+        .config-hint {
+            color: #a0a0a0;
+            font-size: 0.85rem;
+            margin-left: auto;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.2);
+        }
+
+        .stat-card h3 {
+            color: #a0a0a0;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-card .change {
+            font-size: 0.9rem;
+            margin-top: 8px;
+        }
+
+        .change.positive {
+            color: #00d4aa;
+        }
+
+        .change.negative {
+            color: #ff6b6b;
+        }
+
+        .chart-section {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .chart-section h2 {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-section h2::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(180deg, #667eea, #764ba2);
+            border-radius: 2px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .week-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .week-table th,
+        .week-table td {
+            padding: 12px 16px;
+            text-align: right;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .week-table th {
+            color: #a0a0a0;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .week-table th:first-child,
+        .week-table td:first-child {
+            text-align: left;
+        }
+
+        .week-table tbody tr {
+            transition: background 0.3s ease;
+        }
+
+        .week-table tbody tr:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .week-table .current-week {
+            background: rgba(102, 126, 234, 0.15);
+        }
+
+        .week-table .current-week td {
+            font-weight: 600;
+        }
+
+        .trend-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.85rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .trend-indicator.up {
+            background: rgba(0, 212, 170, 0.15);
+            color: #00d4aa;
+        }
+
+        .trend-indicator.down {
+            background: rgba(255, 107, 107, 0.15);
+            color: #ff6b6b;
+        }
+
+        .legend-custom {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: #a0a0a0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: #fff;
+        }
+
+        .tooltip-custom {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            pointer-events: none;
+            z-index: 100;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px 0;
+            color: #666;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8rem;
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+
+            .stat-card .value {
+                font-size: 1.4rem;
+            }
+
+            .config-section {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .config-hint {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 加载遮罩 -->
+    <div id="loadingOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                background: rgba(15, 12, 41, 0.95); display: flex; justify-content: center; align-items: center; 
+                z-index: 9999; flex-direction: column; gap: 20px;">
+        <div style="width: 50px; height: 50px; border: 3px solid rgba(102, 126, 234, 0.3); 
+                    border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <p style="color: #a0a0a0;">正在加载数据...</p>
+    </div>
+    <style>
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .config-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .config-input:hover,
+        .config-input:focus {
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        .config-input::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
+
+        .fetch-btn {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border: none;
+            color: #fff;
+            padding: 10px 25px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .fetch-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .fetch-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
+
+    <div class="container">
+        <header>
+            <h1>📊 Backpack 交易量分析</h1>
+            <p id="dateRangeDisplay">每周交易量对比分析 · 数据加载中...</p>
+        </header>
+
+        <!-- 错误信息容器 -->
+        <div id="errorContainer"></div>
+
+        <!-- 日期范围配置 -->
+        <div class="config-section">
+            <label style="margin-right: 5px;">📅 日期范围</label>
+            <input type="date" id="startDate" class="config-input">
+            <span style="color: #a0a0a0;">至</span>
+            <input type="date" id="endDate" class="config-input">
+            <button id="fetchBtn" class="fetch-btn" onclick="handleFetchData()">获取数据</button>
+        </div>
+
+        <!-- 周配置选项 -->
+        <div class="config-section">
+            <label for="weekStartDay">周起始日</label>
+            <select id="weekStartDay" class="config-select">
+                <option value="1">周一</option>
+                <option value="2">周二</option>
+                <option value="3">周三</option>
+                <option value="4">周四</option>
+                <option value="5">周五</option>
+                <option value="6">周六</option>
+                <option value="0">周日</option>
+            </select>
+            <span class="config-hint" id="weekRangeHint">当前周期：周一 → 周日</span>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="stats-grid" id="statsGrid"></div>
+
+        <!-- 周度对比图表 -->
+        <div class="chart-section">
+            <h2>周交易量走势对比</h2>
+            <p style="color: #a0a0a0; margin-bottom: 20px;">对比每周的总交易量变化趋势</p>
+            <div class="chart-container">
+                <canvas id="weeklyChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 星期几对比 -->
+        <div class="chart-section">
+            <h2>同星期交易量对比</h2>
+            <p style="color: #a0a0a0; margin-bottom: 20px;">对比不同周的同一星期几的交易量走势（例如：本周一 vs 上周一 vs 上上周一）</p>
+            <div class="tabs" id="dayTabs"></div>
+            <div class="chart-container">
+                <canvas id="dayCompareChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 周累计对比 -->
+        <div class="chart-section">
+            <h2>周累计交易量对比</h2>
+            <p style="color: #a0a0a0; margin-bottom: 20px;">对比每周截至某一天的累计交易量（如：本周截至今天 vs 上周截至同一天）</p>
+            <div class="chart-container">
+                <canvas id="cumulativeChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 详细数据表格 -->
+        <div class="chart-section">
+            <h2>每周详细数据</h2>
+            <table class="week-table" id="weekTable">
+                <thead>
+                    <tr>
+                        <th>周次</th>
+                        <th>日期范围</th>
+                        <th>总交易量 (USDC)</th>
+                        <th>日均交易量</th>
+                        <th>环比变化</th>
+                    </tr>
+                </thead>
+                <tbody id="weekTableBody"></tbody>
+            </table>
+        </div>
+
+        <!-- 每日明细表 -->
+        <div class="chart-section">
+            <h2>每日交易量明细</h2>
+            <table class="week-table" id="dailyTable">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>星期</th>
+                        <th>总交易量 (USDC)</th>
+                        <th>环比变化</th>
+                    </tr>
+                </thead>
+                <tbody id="dailyTableBody"></tbody>
+            </table>
+        </div>
+
+        <footer>
+            <p>数据来源: Backpack Exchange API · 生成时间: <span id="generationTime"></span></p>
+        </footer>
+    </div>
+
+    <script>
+        // API 配置
+        const API_BASE_URL = 'https://api.backpack.exchange/wapi/v1/statistics/daily/volume';
+        const CORS_PROXY = 'https://api.allorigins.win/raw?url='; // CORS 代理
+        const DEFAULT_SYMBOLS = 'BTC_USDC,BTC_USDC_PERP,ETH_USDC,ETH_USDC_PERP,SOL_USDC,SOL_USDC_PERP';
+
+        // 检测是否需要使用 CORS 代理 (本地文件或 localhost)
+        function needsCorsProxy() {
+            return window.location.protocol === 'file:' ||
+                window.location.hostname === 'localhost' ||
+                window.location.hostname === '127.0.0.1';
+        }
+
+        // 计算默认日期范围（最近30天）
+        function getDefaultDateRange() {
+            const endDate = new Date();
+            endDate.setDate(endDate.getDate() - 1); // 昨天
+            const startDate = new Date(endDate);
+            startDate.setDate(startDate.getDate() - 29); // 30天前
+
+            return {
+                startDate: startDate.toISOString().split('T')[0],
+                endDate: endDate.toISOString().split('T')[0]
+            };
+        }
+
+        // 数据存储
+        let rawData = [];
+        let processedData = [];
+
+        // 从 API 获取数据
+        async function fetchVolumeData(startDate, endDate) {
+            const params = new URLSearchParams({
+                symbols: DEFAULT_SYMBOLS,
+                includeOther: 'true',
+                startDate: startDate,
+                endDate: endDate
+            });
+
+            let url = `${API_BASE_URL}?${params.toString()}`;
+
+            // 如果需要 CORS 代理，则添加代理前缀
+            if (needsCorsProxy()) {
+                url = CORS_PROXY + encodeURIComponent(url);
+            }
+
+            try {
+                showLoading(true);
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                rawData = data;
+                processData();
+                showLoading(false);
+                return data;
+            } catch (error) {
+                console.error('获取数据失败:', error);
+                showError(`数据加载失败: ${error.message}`);
+                showLoading(false);
+                throw error;
+            }
+        }
+
+        // 显示加载状态
+        function showLoading(show) {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.display = show ? 'flex' : 'none';
+            }
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            const errorContainer = document.getElementById('errorContainer');
+            if (errorContainer) {
+                errorContainer.innerHTML = `
+                    <div style="background: rgba(255, 107, 107, 0.2); border: 1px solid rgba(255, 107, 107, 0.5); 
+                                border-radius: 10px; padding: 20px; margin-bottom: 20px; text-align: center;">
+                        <span style="color: #ff6b6b;">⚠️ ${message}</span>
+                        <button onclick="retryFetch()" style="margin-left: 15px; padding: 8px 16px; 
+                                background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+                                color: #fff; border-radius: 6px; cursor: pointer;">重试</button>
+                    </div>
+                `;
+            }
+        }
+
+        // 清除错误信息
+        function clearError() {
+            const errorContainer = document.getElementById('errorContainer');
+            if (errorContainer) {
+                errorContainer.innerHTML = '';
+            }
+        }
+
+        // 重试获取数据
+        async function retryFetch() {
+            clearError();
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            await fetchVolumeData(startDate, endDate);
+            refreshAll();
+        }
+
+        // 处理原始数据
+        function processData() {
+            processedData = rawData.map(item => {
+                const totalVolume = item.value.reduce((sum, v) => sum + v, 0);
+                const date = new Date(item.date);
+                return {
+                    date: item.date,
+                    dateObj: date,
+                    dayOfWeek: date.getDay(), // 0 = Sunday, 1 = Monday, ...
+                    totalVolume: totalVolume
+                };
+            });
+        }
+
+        // 星期名称
+        const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+        // 当前周起始日配置 (0=周日, 1=周一, ..., 6=周六)
+        let weekStartDay = 1; // 默认周一
+
+        // 根据起始日生成动态的星期标签
+        function getDayLabels() {
+            const labels = [];
+            for (let i = 0; i < 7; i++) {
+                const dayIndex = (weekStartDay + i) % 7;
+                labels.push(dayNames[dayIndex]);
+            }
+            return labels;
+        }
+
+        // 获取某天在当前周内的索引 (0-6)
+        function getDayIndexInWeek(dayOfWeek) {
+            // dayOfWeek: 0=周日, 1=周一, ...
+            // 返回相对于weekStartDay的偏移
+            let index = dayOfWeek - weekStartDay;
+            if (index < 0) index += 7;
+            return index;
+        }
+
+        // 按周分组 (根据自定义起始日)
+        function getWeekKey(dateObj) {
+            const d = new Date(dateObj);
+            const dayOfWeek = d.getDay();
+
+            // 计算这一天距离本周起始日的天数
+            let daysFromStart = dayOfWeek - weekStartDay;
+            if (daysFromStart < 0) daysFromStart += 7;
+
+            // 计算本周的起始日期
+            const weekStart = new Date(d);
+            weekStart.setDate(d.getDate() - daysFromStart);
+
+            return weekStart.toISOString().split('T')[0];
+        }
+
+        // 按周分组数据
+        let weeklyData = {};
+        let weekKeys = [];
+
+        function processWeeklyData() {
+            weeklyData = {};
+
+            processedData.forEach(item => {
+                const weekKey = getWeekKey(item.dateObj);
+                if (!weeklyData[weekKey]) {
+                    weeklyData[weekKey] = {
+                        days: {},
+                        total: 0,
+                        dates: [],
+                        startDate: weekKey
+                    };
+                }
+
+                const dayIndex = getDayIndexInWeek(item.dayOfWeek);
+                weeklyData[weekKey].days[dayIndex] = {
+                    volume: item.totalVolume,
+                    date: item.date,
+                    dayName: dayNames[item.dayOfWeek]
+                };
+                weeklyData[weekKey].total += item.totalVolume;
+                weeklyData[weekKey].dates.push(item.date);
+            });
+
+            // 获取最近5周的数据
+            weekKeys = Object.keys(weeklyData).sort().slice(-5);
+        }
+
+        // 格式化数字
+        function formatVolume(value) {
+            if (value >= 1e9) return (value / 1e9).toFixed(2) + 'B';
+            if (value >= 1e6) return (value / 1e6).toFixed(2) + 'M';
+            if (value >= 1e3) return (value / 1e3).toFixed(2) + 'K';
+            return value.toFixed(2);
+        }
+
+        function formatVolumeShort(value) {
+            if (value >= 1e9) return (value / 1e9).toFixed(1) + 'B';
+            if (value >= 1e6) return (value / 1e6).toFixed(1) + 'M';
+            return value.toFixed(0);
+        }
+
+        // 颜色配置
+        const weekColors = [
+            { bg: 'rgba(102, 126, 234, 0.2)', border: 'rgba(102, 126, 234, 1)' },
+            { bg: 'rgba(118, 75, 162, 0.2)', border: 'rgba(118, 75, 162, 1)' },
+            { bg: 'rgba(240, 147, 251, 0.2)', border: 'rgba(240, 147, 251, 1)' },
+            { bg: 'rgba(0, 212, 170, 0.2)', border: 'rgba(0, 212, 170, 1)' },
+            { bg: 'rgba(255, 193, 7, 0.2)', border: 'rgba(255, 193, 7, 1)' }
+        ];
+
+        // 图表实例
+        let weeklyChart = null;
+        let dayCompareChart = null;
+        let cumulativeChart = null;
+
+        // 生成统计卡片
+        function renderStats() {
+            const statsGrid = document.getElementById('statsGrid');
+            const currentWeek = weekKeys[weekKeys.length - 1];
+            const prevWeek = weekKeys[weekKeys.length - 2];
+
+            const currentTotal = weeklyData[currentWeek]?.total || 0;
+            const prevTotal = weeklyData[prevWeek]?.total || 0;
+            const weekChange = prevTotal ? ((currentTotal - prevTotal) / prevTotal * 100) : 0;
+
+            // 今日数据 (最近一天)
+            const today = processedData[processedData.length - 1];
+            const yesterday = processedData[processedData.length - 2];
+            const dayChange = yesterday ? ((today.totalVolume - yesterday.totalVolume) / yesterday.totalVolume * 100) : 0;
+
+            // 本周日均
+            const currentWeekDays = weeklyData[currentWeek] ? Object.keys(weeklyData[currentWeek].days).length : 1;
+            const currentDailyAvg = currentTotal / currentWeekDays;
+            const prevWeekDays = weeklyData[prevWeek] ? Object.keys(weeklyData[prevWeek].days).length : 7;
+            const prevDailyAvg = prevTotal / prevWeekDays;
+            const avgChange = prevDailyAvg ? ((currentDailyAvg - prevDailyAvg) / prevDailyAvg * 100) : 0;
+
+            // 总交易量
+            const totalVolume = processedData.reduce((sum, d) => sum + d.totalVolume, 0);
+
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <h3>本周总交易量</h3>
+                    <div class="value">${formatVolume(currentTotal)}</div>
+                    <div class="change ${weekChange >= 0 ? 'positive' : 'negative'}">
+                        ${weekChange >= 0 ? '↑' : '↓'} ${Math.abs(weekChange).toFixed(1)}% vs 上周
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h3>今日交易量</h3>
+                    <div class="value">${formatVolume(today.totalVolume)}</div>
+                    <div class="change ${dayChange >= 0 ? 'positive' : 'negative'}">
+                        ${dayChange >= 0 ? '↑' : '↓'} ${Math.abs(dayChange).toFixed(1)}% vs 昨日
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h3>本周日均交易量</h3>
+                    <div class="value">${formatVolume(currentDailyAvg)}</div>
+                    <div class="change ${avgChange >= 0 ? 'positive' : 'negative'}">
+                        ${avgChange >= 0 ? '↑' : '↓'} ${Math.abs(avgChange).toFixed(1)}% vs 上周日均
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h3>数据周期总量</h3>
+                    <div class="value">${formatVolume(totalVolume)}</div>
+                    <div class="change" style="color: #a0a0a0;">
+                        共 ${processedData.length} 天数据
+                    </div>
+                </div>
+            `;
+        }
+
+        // 周度总量对比图表
+        function renderWeeklyChart() {
+            const ctx = document.getElementById('weeklyChart').getContext('2d');
+
+            if (weeklyChart) {
+                weeklyChart.destroy();
+            }
+
+            const labels = weekKeys.map((key, index) => {
+                const week = weeklyData[key];
+                return `第${index + 1}周\n(${week.startDate})`;
+            });
+            const data = weekKeys.map(key => weeklyData[key].total);
+
+            weeklyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '周交易量',
+                        data: data,
+                        backgroundColor: weekKeys.map((_, i) => weekColors[i].bg),
+                        borderColor: weekKeys.map((_, i) => weekColors[i].border),
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                            titleColor: '#fff',
+                            bodyColor: '#a0a0a0',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1,
+                            padding: 12,
+                            cornerRadius: 10,
+                            callbacks: {
+                                label: function (context) {
+                                    return `交易量: ${formatVolume(context.raw)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#a0a0a0'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                color: '#a0a0a0',
+                                callback: function (value) {
+                                    return formatVolumeShort(value);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 同星期对比图表
+        function renderDayTabs() {
+            const tabsContainer = document.getElementById('dayTabs');
+            const dayLabels = getDayLabels();
+            let html = '';
+
+            dayLabels.forEach((day, index) => {
+                const isActive = index === 0 ? 'active' : '';
+                html += `<button class="tab-btn ${isActive}" data-day="${index}">${day}</button>`;
+            });
+
+            tabsContainer.innerHTML = html;
+
+            // 添加点击事件
+            tabsContainer.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    tabsContainer.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    renderDayCompareChart(parseInt(this.dataset.day));
+                });
+            });
+        }
+
+        function renderDayCompareChart(dayIndex) {
+            const ctx = document.getElementById('dayCompareChart').getContext('2d');
+            const dayLabels = getDayLabels();
+
+            if (dayCompareChart) {
+                dayCompareChart.destroy();
+            }
+
+            const labels = weekKeys.map((key, i) => `第${i + 1}周`);
+            const data = weekKeys.map(key => {
+                const dayData = weeklyData[key].days[dayIndex];
+                return dayData ? dayData.volume : 0;
+            });
+
+            const dates = weekKeys.map(key => {
+                const dayData = weeklyData[key].days[dayIndex];
+                return dayData ? dayData.date : '无数据';
+            });
+
+            dayCompareChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: dayLabels[dayIndex] + '交易量',
+                        data: data,
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 6,
+                        pointBackgroundColor: 'rgba(102, 126, 234, 1)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                            titleColor: '#fff',
+                            bodyColor: '#a0a0a0',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1,
+                            padding: 12,
+                            cornerRadius: 10,
+                            callbacks: {
+                                title: function (context) {
+                                    const idx = context[0].dataIndex;
+                                    return `${labels[idx]} - ${dates[idx]}`;
+                                },
+                                label: function (context) {
+                                    if (context.raw === 0) return '无数据';
+                                    return `交易量: ${formatVolume(context.raw)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#a0a0a0'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                color: '#a0a0a0',
+                                callback: function (value) {
+                                    return formatVolumeShort(value);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 周累计对比图表
+        function renderCumulativeChart() {
+            const ctx = document.getElementById('cumulativeChart').getContext('2d');
+            const dayLabels = getDayLabels();
+
+            if (cumulativeChart) {
+                cumulativeChart.destroy();
+            }
+
+            const datasets = weekKeys.map((weekKey, weekIndex) => {
+                const weekData = weeklyData[weekKey];
+                const cumulativeData = [];
+                let cumulative = 0;
+
+                for (let day = 0; day < 7; day++) {
+                    if (weekData.days[day]) {
+                        cumulative += weekData.days[day].volume;
+                    }
+                    cumulativeData.push(cumulative);
+                }
+
+                return {
+                    label: `第${weekIndex + 1}周`,
+                    data: cumulativeData,
+                    borderColor: weekColors[weekIndex].border,
+                    backgroundColor: 'transparent',
+                    borderWidth: weekIndex === weekKeys.length - 1 ? 4 : 2,
+                    tension: 0.3,
+                    pointRadius: weekIndex === weekKeys.length - 1 ? 5 : 3,
+                    pointBackgroundColor: weekColors[weekIndex].border,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 1
+                };
+            });
+
+            cumulativeChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dayLabels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#a0a0a0',
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                            titleColor: '#fff',
+                            bodyColor: '#a0a0a0',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1,
+                            padding: 12,
+                            cornerRadius: 10,
+                            callbacks: {
+                                label: function (context) {
+                                    return `${context.dataset.label}: ${formatVolume(context.raw)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#a0a0a0'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                color: '#a0a0a0',
+                                callback: function (value) {
+                                    return formatVolumeShort(value);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 周度表格
+        function renderWeekTable() {
+            const tbody = document.getElementById('weekTableBody');
+            let html = '';
+
+            weekKeys.forEach((weekKey, index) => {
+                const week = weeklyData[weekKey];
+                const prevWeek = index > 0 ? weeklyData[weekKeys[index - 1]] : null;
+                const change = prevWeek ? ((week.total - prevWeek.total) / prevWeek.total * 100) : 0;
+                const daysCount = Object.keys(week.days).length;
+                const dailyAvg = week.total / daysCount;
+                const isCurrentWeek = index === weekKeys.length - 1;
+
+                const dateRange = `${week.dates[0]} ~ ${week.dates[week.dates.length - 1]}`;
+
+                html += `
+                    <tr class="${isCurrentWeek ? 'current-week' : ''}">
+                        <td>第${index + 1}周 ${isCurrentWeek ? '(本周)' : ''}</td>
+                        <td>${dateRange}</td>
+                        <td>${formatVolume(week.total)}</td>
+                        <td>${formatVolume(dailyAvg)}</td>
+                        <td>
+                            ${index > 0 ? `
+                                <span class="trend-indicator ${change >= 0 ? 'up' : 'down'}">
+                                    ${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(1)}%
+                                </span>
+                            ` : '-'}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // 每日明细表格
+        function renderDailyTable() {
+            const tbody = document.getElementById('dailyTableBody');
+            let html = '';
+
+            processedData.forEach((item, index) => {
+                const prevItem = index > 0 ? processedData[index - 1] : null;
+                const change = prevItem ? ((item.totalVolume - prevItem.totalVolume) / prevItem.totalVolume * 100) : 0;
+
+                html += `
+                    <tr>
+                        <td>${item.date}</td>
+                        <td>${dayNames[item.dayOfWeek]}</td>
+                        <td>${formatVolume(item.totalVolume)}</td>
+                        <td>
+                            ${index > 0 ? `
+                                <span class="trend-indicator ${change >= 0 ? 'up' : 'down'}">
+                                    ${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(1)}%
+                                </span>
+                            ` : '-'}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // 更新周期提示
+        function updateWeekRangeHint() {
+            const hint = document.getElementById('weekRangeHint');
+            const endDayIndex = (weekStartDay + 6) % 7;
+            hint.textContent = `当前周期：${dayNames[weekStartDay]} → ${dayNames[endDayIndex]}`;
+        }
+
+        // 重新渲染所有图表和表格
+        function refreshAll() {
+            if (processedData.length === 0) {
+                showLoading(false);
+                return;
+            }
+            processWeeklyData();
+            updateWeekRangeHint();
+            updateDateRangeDisplay();
+            renderStats();
+            renderWeeklyChart();
+            renderDayTabs();
+            renderDayCompareChart(0);
+            renderCumulativeChart();
+            renderWeekTable();
+            renderDailyTable();
+        }
+
+        // 更新头部日期范围显示
+        function updateDateRangeDisplay() {
+            const display = document.getElementById('dateRangeDisplay');
+            if (processedData.length > 0) {
+                const startDate = processedData[0].date;
+                const endDate = processedData[processedData.length - 1].date;
+                display.textContent = `每周交易量对比分析 · 数据周期: ${startDate} 至 ${endDate}`;
+            }
+
+            // 更新生成时间
+            const generationTime = document.getElementById('generationTime');
+            if (generationTime) {
+                generationTime.textContent = new Date().toLocaleString('zh-CN');
+            }
+        }
+
+        // 处理获取数据按钮点击
+        async function handleFetchData() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!startDate || !endDate) {
+                showError('请选择开始和结束日期');
+                return;
+            }
+
+            if (new Date(startDate) > new Date(endDate)) {
+                showError('开始日期不能晚于结束日期');
+                return;
+            }
+
+            clearError();
+            try {
+                await fetchVolumeData(startDate, endDate);
+                refreshAll();
+            } catch (error) {
+                // Error already handled in fetchVolumeData
+            }
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', async function () {
+            // 设置默认日期范围
+            const { startDate, endDate } = getDefaultDateRange();
+            document.getElementById('startDate').value = startDate;
+            document.getElementById('endDate').value = endDate;
+
+            // 周起始日选择器事件
+            const weekStartSelect = document.getElementById('weekStartDay');
+            weekStartSelect.addEventListener('change', function () {
+                weekStartDay = parseInt(this.value);
+                if (processedData.length > 0) {
+                    refreshAll();
+                }
+            });
+
+            // 初始加载数据
+            try {
+                await fetchVolumeData(startDate, endDate);
+                refreshAll();
+            } catch (error) {
+                // Error already handled in fetchVolumeData
+            }
+        });
+    </script>
+</body>
+
+</html>
